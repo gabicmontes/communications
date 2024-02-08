@@ -5,12 +5,11 @@ import (
 	"os"
 	"encoding/json"
 	"github.com/joho/godotenv"
-	"log"
 
 	tgbotapi "github.com/go-telegram-bot-api/telegram-bot-api"
 )
 
-type ErrorResponse struct {
+type Response struct {
 	Message string `json:"message"`
 }
 
@@ -25,13 +24,13 @@ func Send(w http.ResponseWriter, r *http.Request) {
 
 	token := os.Getenv("TELEGRAM_BOT_TOKEN")
 
-	var errorResponse ErrorResponse
+	var response Response
 
 	if token == "" {
-		errorResponse.Message = "Telegram bot token not found"
+		response.Message = "Telegram bot token not found"
 		w.Header().Set("Content-Type", "application/json")
 		w.WriteHeader(http.StatusBadRequest)
-		json.NewEncoder(w).Encode(errorResponse)
+		json.NewEncoder(w).Encode(response)
 		return
 	}
 	
@@ -41,38 +40,38 @@ func Send(w http.ResponseWriter, r *http.Request) {
 	err := json.NewDecoder(r.Body).Decode(&requestBody)
 
 	if err != nil {
-		errorResponse.Message = err.Error()
+		response.Message = err.Error()
 		w.Header().Set("Content-Type", "application/json")
 		w.WriteHeader(http.StatusBadRequest)
-		json.NewEncoder(w).Encode(errorResponse)
+		json.NewEncoder(w).Encode(response)
 		return
 	}
 
 	bot, err := tgbotapi.NewBotAPI(token)
 
 	if err != nil {
-		errorResponse.Message = err.Error()
+		response.Message = err.Error()
 		w.Header().Set("Content-Type", "application/json")
 		w.WriteHeader(http.StatusBadRequest)
-		json.NewEncoder(w).Encode(errorResponse)
+		json.NewEncoder(w).Encode(response)
 		return
 	}
 
 	alertText := tgbotapi.NewMessage(requestBody.GroupID, requestBody.Message)
-	response, err := bot.Send(alertText)
+	resp, err := bot.Send(alertText)
 
 	if err != nil {
-		errorResponse.Message = err.Error()
+		response.Message = err.Error()
 		w.Header().Set("Content-Type", "application/json")
 		w.WriteHeader(http.StatusBadRequest)
-		json.NewEncoder(w).Encode(errorResponse)
+		json.NewEncoder(w).Encode(response)
 		return
 	}
 
-	log.Printf("Message sent to group %d with message id %d", response.Chat.ID, response.MessageID)
+	response.Message = "Message sent to group " + resp.Chat.Title
 
 	w.Header().Set("Content-Type", "application/json")
 	w.WriteHeader(http.StatusOK)
-	json.NewEncoder(w).Encode(requestBody)
+	json.NewEncoder(w).Encode(response)
 	return
 }
